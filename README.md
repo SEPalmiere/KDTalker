@@ -98,6 +98,8 @@ OR, you can download above all weights in [Huggingface](https://huggingface.co/C
 # Inference
 ```
 python inference.py -source_image ./example/source_image/WDA_BenCardin1_000.png -driven_audio ./example/driven_audio/WDA_BenCardin1_000.wav -output ./results/output.mp4
+
+python inference.py -source_image "C:/Users/palmi/Downloads/testes/fernan.jpg" -driven_audio "C:/Users/palmi/Downloads/testes/fernanda2.mp3" -output "C:/Users/palmi/Downloads/testes/output.mp4"
 ```
 
 
