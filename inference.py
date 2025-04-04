@@ -119,7 +119,7 @@ def dct2device(dct: dict, device):
         dct[key] = torch.tensor(dct[key]).to(device)
     return dct
 
-def save_video_with_watermark(video, audio, save_path):
+def save_video_with_watermark(video, audio, save_path, watermark=False):
     temp_file = str(uuid.uuid4())+'.mp4'
     cmd = r'ffmpeg -y -i "%s" -i "%s" -vcodec copy "%s"' % (video, audio, temp_file)
     os.system(cmd)
@@ -133,7 +133,9 @@ class Inferencer(object):
 
         from model import get_model
         self.point_diffusion = get_model()
-        ckpt = torch.load('KDTalker.pth')
+        # ckpt = torch.load('KDTalker.pth')
+        ckpt = torch.load('C:/IA/video/KDTalke-main/ckpts/KDTalker.pth', map_location=self.device)
+
 
         self.point_diffusion.load_state_dict(ckpt['model'])
         self.point_diffusion.eval()
@@ -151,11 +153,10 @@ class Inferencer(object):
 
         # set tyro theme
         tyro.extras.set_accent_color("bright_cyan")
-        args = tyro.cli(ArgumentConfig)
-
-        # specify configs for inference
-        self.inf_cfg = partial_fields(InferenceConfig, args.__dict__)  # use attribute of args to initial InferenceConfig
-        self.crop_cfg = partial_fields(CropConfig, args.__dict__)  # use attribute of args to initial CropConfig
+        
+        # Inicializar os configs sem depender dos argumentos da linha de comando
+        self.inf_cfg = InferenceConfig()
+        self.crop_cfg = CropConfig()
 
         self.live_portrait_pipeline = LivePortraitPipeline(inference_cfg=self.inf_cfg, crop_cfg=self.crop_cfg)
 
@@ -202,6 +203,7 @@ class Inferencer(object):
             m = spec[seq, :]
             indiv_mels.append(m.T)
         indiv_mels = np.asarray(indiv_mels)  # T 80 16
+
         return indiv_mels
 
     def extract_wav2lip_from_audio(self, audio_file_path):
@@ -347,13 +349,14 @@ class Inferencer(object):
             I_p_i = self.live_portrait_pipeline.live_portrait_wrapper.parse_output(out['out'])[0]
             I_p_lst.append(I_p_i)
 
-        video_name = save_path.split('/')[-1]
+        video_name = os.path.basename(save_path)
         video_save_dir = os.path.dirname(save_path)
+        os.makedirs(video_save_dir, exist_ok=True)
         path = os.path.join(video_save_dir, 'temp_' + video_name)
 
         imageio.mimsave(path, I_p_lst, fps=float(25))
 
-        audio_name = audio_path.split('/')[-1]
+        audio_name = os.path.basename(audio_path)
         new_audio_path = os.path.join(video_save_dir, audio_name)
         start_time = 0
         sound = AudioSegment.from_file(audio_path)
@@ -371,13 +374,11 @@ class Inferencer(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-source_image", type=str, default="example/source_image/WDA_BenCardin1_000.png",
-                        help="source image")
-    parser.add_argument("-driven_audio", type=str, default="example/driven_audio/WDA_BenCardin1_000.wav",
-                        help="driving audio")
-    parser.add_argument("-output", type=str, default="results/output.mp4", help="output video file name", )
+    parser.add_argument("-source_image", type=str, required=True, help="source image")
+    parser.add_argument("-driven_audio", type=str, required=True, help="driving audio")
+    parser.add_argument("-output", type=str, required=True, help="output video file name")
 
     args = parser.parse_args()
-
+ 
     Infer = Inferencer()
     Infer.generate_with_audio_img(args.source_image, args.driven_audio, args.output)
